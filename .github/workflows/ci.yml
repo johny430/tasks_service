@@ -1,0 +1,100 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: install dependencies
+        run: uv sync --frozen
+
+      - name: prepare env
+        run: cp .env.example .env
+
+      - name: ruff
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+
+      - name: mypy
+        run: uv run mypy .
+
+  tests:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: tasks
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DB_HOST: localhost
+      DB_PORT: 5432
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: install dependencies
+        run: uv sync --frozen
+
+      - name: prepare env
+        run: cp .env.example .env
+
+      - name: apply migrations
+        run: uv run alembic upgrade head
+
+      - name: check migrations match models
+        run: uv run alembic check
+
+      - name: check downgrade
+        run: uv run alembic downgrade base && uv run alembic upgrade head
+
+      - name: tests
+        run: uv run pytest -vv --cov --cov-report=term-missing:skip-covered
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # тот же запуск, что в README: docker compose up --build без .env
+      - name: start compose stack
+        run: docker compose up -d --build --wait --wait-timeout 120
+
+      - name: smoke test
+        run: |
+          curl -fsS http://localhost:8000/healthcheck
+          curl -fsS -X POST http://localhost:8000/users \
+            -H 'Content-Type: application/json' \
+            -d '{"email": "ci@example.com", "name": "CI"}'
+          curl -fsS http://localhost:8000/users/1/tasks/stats
+
+      - name: compose logs
+        if: failure()
+        run: docker compose logs
+
+      - name: stop compose stack
+        if: always()
+        run: docker compose down -v

@@ -1,0 +1,104 @@
+[project]
+name = "tasks-service"
+version = "0.1.0"
+description = "Сервис учёта задач пользователей"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "fastapi>=0.162.0",
+    "uvicorn[standard]>=0.54.0",
+    "sqlalchemy[postgresql-asyncpg]>=2.1.6",
+    "alembic>=1.20.1",
+    "pydantic[email]>=2.14.1",
+    "pydantic-settings>=2.16.1,<3",
+    "structlog>=26.1.0",
+]
+
+[dependency-groups]
+dev = [
+    "factory-boy>=3.3.3",
+    "httpx>=0.28.1",
+    "mypy>=2.4.0",
+    "pre-commit>=4.2.0",
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.1",
+    "pytest-cov>=7.1.0",
+    "pytest-randomly>=5.0.0",
+    "ruff>=0.17.3",
+]
+
+[tool.uv]
+package = false
+
+[tool.ruff]
+target-version = 'py313'
+line-length = 120
+lint.select = [
+    "E", "W",  # pycodestyle
+    "F",       # Pyflakes
+    "B",       # flake8-bugbear
+    "TID",     # flake8-tidy-imports
+    "Q",       # flake8-quotes
+    "SIM",     # flake8-simplify
+    "ICN",     # flake8-import-conventions
+    "ISC",     # flake8-implicit-str-concat
+    "TC",      # flake8-type-checking
+    "UP",      # pyupgrade
+    "I",       # isort
+    "YTT",     # flake8-2020
+    "FA",      # flake8-future-annotations
+    "C90",     # mccabe
+    "C4",      # flake8-comprehensions
+    "PIE",     # flake8-pie
+    "RSE",     # flake8-raise
+    "PGH",     # pygrep-hooks
+    "D201", "D204", "D206", "D207", "D208", "D209", "D210", "D211", "D213", "D300", "D301", "D402", "D412", "D414",  # правила для докстрингов
+    "G004",    # logging-f-string
+    "PT",      # flake8-pytest-style
+]
+lint.ignore = [
+    "Q000", "Q003",  # одинарные кавычки, попросил ruff format
+    "ISC001",  # попросил ruff format
+]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
+
+[tool.ruff.format]
+quote-style = "single"
+
+[tool.ruff.lint.flake8-import-conventions.aliases]
+typing = "t"
+
+[tool.ruff.lint.flake8-bugbear]
+extend-immutable-calls = ["fastapi.Depends", "fastapi.Path", "fastapi.Query"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = 'auto'
+asyncio_default_fixture_loop_scope = 'session'
+asyncio_default_test_loop_scope = 'session'
+
+[tool.mypy]
+python_version = '3.13'
+show_error_codes = true
+warn_redundant_casts = true
+ignore_missing_imports = true
+warn_return_any = true
+warn_unused_configs = true
+warn_unreachable = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+disallow_untyped_decorators = true
+exclude = ['conftest', 'tests']
+plugins = ['pydantic.mypy']
+
+[tool.coverage.run]
+source = ['src']
+concurrency = ['greenlet', 'thread']
+omit = ['src/migrations/*']
+
+[tool.coverage.report]
+exclude_also = [
+    'if t.TYPE_CHECKING',
+]

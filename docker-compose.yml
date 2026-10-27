@@ -1,0 +1,59 @@
+x-app-env: &app-env
+  env_file:
+    - path: .env.example
+    - path: .env
+      required: false
+  environment:
+    DB_HOST: postgres
+    DB_PORT: 5432
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${DB_USERNAME:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${DB_NAME:-tasks}
+    ports:
+      - "${DB_PORT:-5440}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+
+  migrations:
+    build:
+      context: .
+      target: application
+    <<: *app-env
+    command: ["alembic", "upgrade", "head"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    build:
+      context: .
+      target: application
+    <<: *app-env
+    ports:
+      - "8000:8000"
+    depends_on:
+      migrations:
+        condition: service_completed_successfully
+
+  tests:
+    profiles: [test]
+    build:
+      context: .
+      target: tests
+    <<: *app-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
